@@ -13,7 +13,7 @@ backgroundNotificationListener()
 notifee.onBackgroundEvent(async ({ type, detail }) => {
     const { notification, pressAction } = detail;
   
-    console.log(notification,pressAction,"Remote Notification")
+    console.log(notification,pressAction,"Remote Notification Notifee")
 
 
 

@@ -212,6 +212,12 @@ android {
         }
     }
     signingConfigs {
+        release {
+      storeFile file('rnpushnotify.keystore')
+      storePassword 'rnpushnotify'
+      keyAlias 'rnpushnotify'
+      keyPassword 'rnpushnotify'
+    }
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
