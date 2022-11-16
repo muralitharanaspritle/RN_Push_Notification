@@ -8,6 +8,8 @@ import notifee, {
   AndroidImportance,
   AndroidBadgeIconType,
   AndroidVisibility,
+  AndroidColor,
+  AndroidCategory,
 } from '@notifee/react-native';
 import messaging from '@react-native-firebase/messaging';
 import {Center} from './Config/Alignment';
@@ -59,9 +61,8 @@ const App = () => {
   //   };
   // }, []);
   useEffect(() => {
-    androidNotification();
+    Platform.OS === 'android' && androidNotification();
   }, []);
-  let channelId;
 
   async function requestUserPermission() {
     const authStatus = await messaging().requestPermission();
@@ -83,25 +84,35 @@ const App = () => {
     console.log(token, 'ToKEN');
   };
 
+  let channelId;
   const channel = async () => {
     channelId = await notifee.createChannel({
       id: 'muralichannel',
       name: 'Murali Channel',
       importance: AndroidImportance.HIGH,
+      vibration: true,
+      vibrationPattern: [300, 500],
+      lights: true,
+      lightColor: AndroidColor.WHITE,
     });
   };
 
   const displayNotification = async () => {
     const notificationId = await notifee.displayNotification({
-      title: 'Demo notification !',
-      body: 'Hey I am here!',
+      title:  '<p style="color: #000000;"><b>01 Jun 2022 Log 102868 Update</span></p></b></p>',
+      body: '01 Jun 2022 Log 102868 Update: Rainfall exceeding threshold value for S234(S224) was back to normal. All parties Informed.',
       android: {
         channelId,
-        color: '#0c6487',
+        color: AndroidColor.RED,
         smallIcon: 'ic_small_icon',
-        largeIcon: require('./assets/Notification/React.png'),
+        largeIcon: require('./assets/Notification/ifms_logo.png'),
         badgeIconType: AndroidBadgeIconType.SMALL,
         visibility: AndroidVisibility.PRIVATE,
+        vibrationPattern: [300, 500],
+        ongoing: false,
+        fullScreenAction:{
+          id:channelId
+        },
         actions: [
           {
             title: '<b>Reply</b> &#129312;',
@@ -111,13 +122,13 @@ const App = () => {
             },
             input: {
               allowFreeFormInput: true, // set to false
-              choices: ['Yes', 'No', 'Maybe'],
-              placeholder: 'Reply to murali...',
+              choices: ['Acknowledge', 'Delay', 'Messages'],
+              placeholder: 'Reply to task...',
             },
           },
           {
-            title: '<p style="color: #f44336;"><b>No</b> &#128557;</p>',
-            pressAction: {id: 'No'},
+            title: '<p style="color: #f44336;"><b>Dismiss</b> &#128557;</p>',
+            pressAction: {id: 'Dismiss'},
           },
         ],
         // pressAction is needed if you want the notification to open the app when pressed
