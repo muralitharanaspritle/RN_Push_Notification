@@ -1,4 +1,11 @@
-import {StyleSheet, Text, TouchableOpacity, View, Platform} from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Platform,
+  Image,
+} from 'react-native';
 import React, {useEffect, useState} from 'react';
 import notifee, {
   EventType,
@@ -10,6 +17,7 @@ import notifee, {
   AndroidVisibility,
   AndroidColor,
   AndroidCategory,
+  AuthorizationStatus,
 } from '@notifee/react-native';
 import messaging from '@react-native-firebase/messaging';
 import {Center} from './Config/Alignment';
@@ -61,7 +69,22 @@ const App = () => {
   //   };
   // }, []);
   useEffect(() => {
-    Platform.OS === 'android' && androidNotification();
+    Platform.OS === 'android' ? androidNotification() : iosNotification();
+    const unsubscribe = notifee.onForegroundEvent(({type, detail}) => {
+      switch (type) {
+        case EventType.DISMISSED:
+          console.log('User dismissed notification', detail.notification);
+          break;
+        case EventType.PRESS:
+          //setLoading(false);
+          console.log('User pressed notification', detail.notification);
+          break;
+        case EventType.ACTION_PRESS:
+          console.log(detail.input, 'Input');
+          setReplyInput(detail.input);
+          break;
+      }
+    });
   }, []);
 
   async function requestUserPermission() {
@@ -98,45 +121,88 @@ const App = () => {
   };
 
   const displayNotification = async () => {
-    const notificationId = await notifee.displayNotification({
-      title:  '<p style="color: #000000;"><b>01 Jun 2022 Log 102868 Update</span></p></b></p>',
-      body: '01 Jun 2022 Log 102868 Update: Rainfall exceeding threshold value for S234(S224) was back to normal. All parties Informed.',
-      android: {
-        channelId,
-        color: AndroidColor.RED,
-        smallIcon: 'ic_small_icon',
-        largeIcon: require('./assets/Notification/ifms_logo.png'),
-        badgeIconType: AndroidBadgeIconType.SMALL,
-        visibility: AndroidVisibility.PRIVATE,
-        vibrationPattern: [300, 500],
-        ongoing: false,
-        fullScreenAction:{
-          id:channelId
-        },
-        actions: [
-          {
-            title: '<b>Reply</b> &#129312;',
-            pressAction: {id: 'Replay'},
-            pressAction: {
-              id: 'Replay',
-            },
-            input: {
-              allowFreeFormInput: true, // set to false
-              choices: ['Acknowledge', 'Delay', 'Messages'],
-              placeholder: 'Reply to task...',
-            },
+    if (Platform.OS === 'android') {
+      const notificationId = await notifee.displayNotification({
+        title:
+          '<p style="color: #000000;"><b>01 Jun 2022 Log 102868 Update</span></p></b></p>',
+        subtitle: 'FMS',
+        body: '<p>01 Jun 2022 Log 102868 Update: Rainfall exceeding threshold value for S234(S224) was back to normal. All parties Informed.</p>',
+        android: {
+          channelId,
+          color: '#F0B414',
+          smallIcon: 'ic_small_icon',
+          largeIcon: require('./assets/Notification/ifms_logo.png'),
+          badgeIconType: AndroidBadgeIconType.SMALL,
+          visibility: AndroidVisibility.PRIVATE,
+          vibrationPattern: [300, 500],
+          // ongoing: false,
+          fullScreenAction: {
+            id: channelId,
           },
-          {
-            title: '<p style="color: #f44336;"><b>Dismiss</b> &#128557;</p>',
-            pressAction: {id: 'Dismiss'},
+          actions: [
+            {
+              title: '<p style="color:#F0B414;"><b>Reply</b></p>',
+              pressAction: {id: 'Replay'},
+              pressAction: {
+                id: 'Replay',
+              },
+              input: {
+                allowFreeFormInput: true, // set to false
+                choices: ['Acknowledge', 'Delay', 'Messages'],
+                placeholder: 'Reply to task...',
+              },
+            },
+            {
+              title: '<p style="color: #F0B414;"><b>Dismiss</b> </p>',
+              pressAction: {id: 'Dismiss'},
+            },
+          ],
+          // pressAction is needed if you want the notification to open the app when pressed
+          pressAction: {
+            id: 'default',
           },
-        ],
-        // pressAction is needed if you want the notification to open the app when pressed
-        pressAction: {
-          id: 'default',
         },
-      },
-    });
+      });
+    } else {
+      await notifee.setNotificationCategories([
+        {
+          id: 'message',
+          actions: [
+            {
+              id: 'reply',
+              title: 'Reply',
+              input: true,
+            },
+          ],
+        },
+      ]);
+      // notifee.setBadgeCount(0).then(() => console.log('Badge count set!'));
+      const notificationId = await notifee.displayNotification({
+        title: '02 Jun 2022 Log 102868 Update',
+        subtitle: 'FMS',
+        body: '01 Jun 2022 Log 102868 Update: Rainfall exceeding threshold value for S234(S224) was back to normal. All parties Informed.',
+        ios: {
+          foregroundPresentationOptions: {
+            badge: true,
+            sound: true,
+            banner: true,
+            list: true,
+            announcement:true
+          },
+          attachments: [
+            {
+              // Remote image
+              url: 'https://i.picsum.photos/id/575/200/300.jpg?hmac=sopd2rAqqxeAtI5YKmESfglb3av7FRnaTdo3woj1uEM',
+              thumbnailClippingRect: {height: 50, width: 20, x: 20, y: 20},
+            },
+          ],
+          interruptionLevel: 'critical',
+          critical: true,
+          criticalVolume: 0.9,
+          categoryId: 'message',
+        },
+      });
+    }
   };
 
   const androidNotification = async () => {
@@ -153,6 +219,47 @@ const App = () => {
     // Trigger
     // Appearance (small,large icon, Badges, Importance, Visbility)
     // display Notification
+  };
+
+  const iosNotification = async () => {
+    const settings = await notifee.requestPermission({
+      sound: true,
+      criticalAlert: true,
+      alert: true,
+      banner: true,
+    });
+
+    if (settings.authorizationStatus === AuthorizationStatus.DENIED) {
+      console.log('User denied permissions request');
+    } else if (
+      settings.authorizationStatus === AuthorizationStatus.AUTHORIZED
+    ) {
+      console.log('User granted permissions request');
+      setCategories()
+    } else if (
+      settings.authorizationStatus === AuthorizationStatus.PROVISIONAL
+    ) {
+      console.log('User provisionally granted permissions request');
+    }
+
+    async function setCategories() {
+      await notifee.setNotificationCategories([
+        {
+          id: 'post',
+          actions: [
+            {
+              id: 'like',
+              title: 'Like Post',
+              
+            },
+            {
+              id: 'dislike',
+              title: 'Dislike Post',
+            },
+          ],
+        },
+      ]);
+    }
   };
 
   // async function remoteNotification() {
@@ -354,6 +461,25 @@ const App = () => {
 
   return (
     <View style={styles.container}>
+      <View
+        style={{
+          flex: 0.2,
+          flexDirection: 'row',
+          justifyContent: 'center',
+        }}>
+        <View style={{flex: 0.5, ...Center}}>
+          <Image
+            source={require('./assets/Notification/ifms_logo.png')}
+            resizeMode="contain"
+            style={{flex: 1}}
+          />
+        </View>
+      </View>
+      <View style={{flex: 0.1, ...Center}}>
+        <Text style={[styles.text, {fontSize: 25, color: 'black'}]}>
+          FMS R&D - Push Notification
+        </Text>
+      </View>
       <View style={{...Center}}>
         <Text style={[styles.text, {fontSize: 20, color: 'black'}]}>
           {replyInput}
@@ -365,10 +491,12 @@ const App = () => {
           // onCRUDDisplayNotification();
           displayNotification();
         }}>
-        <Text style={styles.text}>NOTIFY</Text>
+        <Text style={[styles.text, {color: 'black', fontSize: 20}]}>
+          FMS Notify
+        </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.button}
         onPress={() => {
           onCreateTriggerNotification();
@@ -381,7 +509,7 @@ const App = () => {
           iosPushNotify();
         }}>
         <Text style={styles.text}>ios</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 };
@@ -397,7 +525,7 @@ const styles = StyleSheet.create({
   button: {
     flex: 0.1,
     ...Center,
-    backgroundColor: '#438de8',
+    backgroundColor: '#F0B414',
     borderRadius: 50,
     margin: 20,
     elevation: 10,
@@ -408,6 +536,5 @@ const styles = StyleSheet.create({
   },
   text: {
     fontWeight: 'bold',
-    color: 'white',
   },
 });
